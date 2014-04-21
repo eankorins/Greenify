@@ -67,7 +67,7 @@ public class MapRunner : MonoBehaviour
                 {
                     int depth = (int)(OpenTiles.Count / filledCount) * depthCount + 1;
                     bool check = OpenTiles.Where(i => i.tag != "Taken").Select(i => i.GetComponent<Tile>().checkIfPath(depth, false)).Any(i=> i == false);
-                    if (temp.hasPath() && !check)
+                    if (temp.hasPath() && !check  && sweepForWallRight())
                     {
                         Path curMove = new Path();
                         curMove = temp.nextMove();
