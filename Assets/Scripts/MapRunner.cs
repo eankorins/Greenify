@@ -9,7 +9,8 @@ public class MapRunner : MonoBehaviour
     public GameObject map;
     public GameObject currentTile;
     public float waitTime;
-    public List<List<Transform>> tileGrid;
+    public Transform[][] tileGrid;
+    public int stepTurnCount, depthCount;
     bool nextMove;
     Path firstMove;
     Path temp;
@@ -33,6 +34,15 @@ public class MapRunner : MonoBehaviour
         var validMoves = movements.Where(i => isValidMove(gameObject.transform.position, i) == true).ToList();
         firstMove.freePaths = validMoves.Select(i => new Path() { dirMove = i, currentPosition = runner.position }).Where(i => i != null).ToList();
         firstMove.pathTried = firstMove.freePaths.Select(i => false).ToList();
+        getGrid();
+    }
+    void getGrid()
+    {
+        var t = map.GetComponentsInChildren<Transform>();
+        var initials = t.Select(i => i.name.Substring(0, i.name.IndexOf(',') + 1)).Distinct().ToList();
+        var columns = initials.Select(i => t.Where(x => i == x.name.Substring(0, x.name.IndexOf(',') + 1)).ToList()).ToList();
+        columns.Remove(columns[0]);
+        tileGrid = columns.Select(i=>i.ToArray()).ToArray();    
     }
     void Update()
     {
@@ -53,11 +63,11 @@ public class MapRunner : MonoBehaviour
             if (filledCount > 0)
             {
                 int counter = 0;
-                while(counter < 1)
+                while(counter < stepTurnCount)
                 {
-                    int depth = (int)(OpenTiles.Count / filledCount);
-                    bool check = OpenTiles.Where(i => i.tag != "Taken").Select(i => i.GetComponent<Tile>().checkIfPath(depth)).Any(i=> i == false);
-                    if (temp.hasPath() && !check)
+                    int depth = (int)(OpenTiles.Count / filledCount) * depthCount + 1;
+                    bool check = OpenTiles.Where(i => i.tag != "Taken").Select(i => i.GetComponent<Tile>().checkIfPath(depth, false)).Any(i=> i == false);
+                    if (temp.hasPath() && !check && sweepForWallRight() && sweepForWallLeft())
                     {
                         Path curMove = new Path();
                         curMove = temp.nextMove();
@@ -73,12 +83,14 @@ public class MapRunner : MonoBehaviour
                     }
                     else if (temp.Prev != null)
                     {
+                        Debug.Log("Runner has Path: " + temp.hasPath() + " Path Check: " + !check + " Sweep Right: " + sweepForWallRight() + " Sweep Left: " +  sweepForWallLeft());
                         reverseRunner(-temp.dirMove);
                         filledCount++;
                         temp = temp.Prev;
                     }
                     else
                     {
+                        Debug.Log("Runner has Path: " + temp.hasPath() + " Path Check: " + !check + " Sweep Right: " + sweepForWallRight() + " Sweep Left: " + sweepForWallLeft());
                         Debug.Log("Unsolvable");
                     }
                     counter++;
@@ -122,25 +134,121 @@ public class MapRunner : MonoBehaviour
             {
                 return true;
             }
+            if (tileHit.collider.tag == "Player")
+            {  
+                return true;
+            }
         }
 
         return false;
     }
 
-    public bool sweepForWall()
+    public bool sweepForWallRight()
     {
-        for (int width = 0; width < tileGrid.Count; width++)
+        bool playerHit = false;
+        int c = 0;
+        while (c < tileGrid[0].Length)
         {
-            for (int height = 0; height < tileGrid[width].Count; height++)
-            {
-                bool moveRight = true;
-                while (moveRight)
+            var tiles = tileGrid[c].Where(i=>i.tag =="Free").ToList();
+                List<Transform> tempTiles = new List<Transform>();
+                int obstacleCount = 0;
+                foreach (var item in tiles)
                 {
-                    moveRight = isValidMove(tileGrid[width][height].position)
+                    if (item.position.x < runner.position.x)
+                    {
+                        Ray ray = new Ray(item.position, move.Right);
+                        RaycastHit tileHit;
+                        Debug.DrawRay(item.position, move.Right, Color.black, 2f);
+                        if (Physics.Raycast(ray, out tileHit, 6f))
+                        {
+                            if (tileHit.collider.tag == "Free")
+                            {
+                                obstacleCount--;
+                            }
+                            if (tileHit.collider.tag == "Player")
+                            {
+                                playerHit = true;
+                            }
+                            else
+                                obstacleCount++;
+                        }
+                    }
+                    else
+                    {
+                        playerHit = false;
+                        return true;
+                    }
                 }
-            }
+                if (playerHit)
+                {
+                    playerHit = false;
+                    return true;
+                }
+                if (obstacleCount >= tiles.Count() && !playerHit)
+                {
+                    playerHit = false;
+                    return false;
+                }
+            
+            c++;
         }
+        playerHit = false;
         return true;
+       
+    }
+    public bool sweepForWallLeft()
+    {
+        bool playerHit = false;
+        int c = 0;
+        while (c < tileGrid[0].Length)
+        {
+            var tiles = tileGrid[tileGrid.Length - (c + 1)].Where(i => i.tag == "Free").ToList();
+                List<Transform> tempTiles = new List<Transform>();
+                int obstacleCount = 0;
+                foreach (var item in tiles)
+                {
+                    if (item.position.x > runner.position.x)
+                    {
+                        Ray ray = new Ray(item.position, move.Left);
+                        RaycastHit tileHit;
+                        Debug.DrawRay(item.position, move.Left, Color.red, 2f);
+                        if (Physics.Raycast(ray, out tileHit, 6f))
+                        {
+                            if (tileHit.collider.tag == "Free")
+                            {
+                                obstacleCount--;
+                            }
+                            if (tileHit.collider.tag == "Player")
+                            {
+                                playerHit = true;
+                            }
+                            else
+                                obstacleCount++;
+                        }
+                    }
+                    else
+                    {
+                        playerHit = false;
+                        return true;
+                    }
+
+                }
+                if (playerHit)
+                {
+                    playerHit = false;
+                    return true;
+                }
+                if (obstacleCount >= tiles.Count() && !playerHit)
+                {
+                    playerHit = false;
+                    return false;
+                }
+            c++;
+
+        }
+        playerHit = false;
+        return true;
+
     }
 }
 public class Path

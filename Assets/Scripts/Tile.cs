@@ -27,7 +27,7 @@ public class Tile : MonoBehaviour {
     {
         Ray ray = new Ray(origin , direction );
         
-        Debug.DrawRay(origin, direction, Color.red, 1f);
+        
         if (Physics.Raycast(ray, out tileHit, 6f))
         {
             if (tileHit.collider.tag == "Free")
@@ -43,26 +43,27 @@ public class Tile : MonoBehaviour {
 
         return false;
     }
-    public bool checkIfPath(int depth)
+
+    public bool checkIfPath(int depth, bool noRight)
     {
-        
+
         Path p = new Path();
         int counter = 0;
-        p.freePaths = freeMoves(plane.transform.position, 0, new Vector3());
+        p.freePaths = freeMoves(plane.transform.position, 0, new Vector3(),noRight);
         var paths = p.freePaths;
         if (p.freePaths.Count > 0)
         {
             List<Path> newMoves = paths;
             while (counter < depth)
             {
-                newMoves = newMoves.SelectMany(i => freeMoves(i.currentPosition + i.dirMove, i.pathDepth, i.dirMove)).ToList();
+                newMoves = newMoves.SelectMany(i => freeMoves(i.currentPosition + i.dirMove, i.pathDepth, i.dirMove, noRight)).ToList();
                 counter++;
                 if (playerHit)
                 {
                     playerHit = false;
                     return true;
                 }
-                    
+
             }
             if (newMoves.Count == 0 || newMoves.Any(i => i.pathDepth < depth))
             {
@@ -81,9 +82,50 @@ public class Tile : MonoBehaviour {
             return false;
         }
     }
-    public List<Path> freeMoves(Vector3 currentPos, int depth, Vector3 lastDirection)
+    public bool pathBetween(Vector3 origin, Vector3 Destination, int depth)
     {
+        Path p = new Path();
+        int counter = 0;
+        p.freePaths = freeMoves(plane.transform.position, 0, new Vector3(), false);
+        var paths = p.freePaths;
+        if (p.freePaths.Count > 0)
+        {
+            List<Path> newMoves = paths;
+            while (counter < depth)
+            {
+                newMoves = newMoves.SelectMany(i => freeMoves(i.currentPosition + i.dirMove, i.pathDepth, i.dirMove, false)).ToList();
+                counter++;
+                if (playerHit)
+                {
+                    playerHit = false;
+                    return true;
+                }
+
+            }
+            if (newMoves.Count == 0 || newMoves.Any(i => i.pathDepth < depth))
+            {
+                playerHit = false;
+                return false;
+            }
+            else
+            {
+                playerHit = false;
+                return true;
+            }
+        }
+        else
+        {
+            playerHit = false;
+            return false;
+        }
+        return true;    
+    }
+    public List<Path> freeMoves(Vector3 currentPos, int depth, Vector3 lastDirection, bool noRight)
+    {
+        
         var directions = move.Directions.ToList();
+        if (noRight)
+            directions.Remove(move.Right);
         directions.Remove(-lastDirection);
         var paths = directions.Where(i => isValidMove(currentPos, i)).Select(i => new Path() { currentPosition = currentPos, dirMove = i, pathDepth = depth + 1 }).ToList();
         return paths;

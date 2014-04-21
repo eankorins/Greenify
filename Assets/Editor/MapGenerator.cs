@@ -14,7 +14,7 @@ public class CreatorWindow : EditorWindow {
 	public Object map;
 	public Object obstacle;
     public List<Object> tiles;
-    List<List<Transform> tileGrid;
+    List<List<Transform>> tileGrid;
     GameObject grid;
 	bool doRemove = false;
 	[MenuItem("Window/Map Editor")]
@@ -54,8 +54,7 @@ public class CreatorWindow : EditorWindow {
 	                }
                     tileGrid.Add(tempList);
 	            }
-                var m = (GameObject)grid;
-                m.GetComponent<Map>().tileGrid = tileGrid;
+                grid.GetComponent<Map>().stuff = 2;
 				isPressed = false;
 			}
 
@@ -121,9 +120,7 @@ public class CreatorWindow : EditorWindow {
                             if (newItem.name.Contains("MapRunner"))
                             {
                                 var runner = newItem.GetComponentsInChildren<Transform>();
-                                var m = runner[1].GetComponent<MapRunner>();
-                                m.map = grid;
-                                m.tileGrid = grid.GetComponent<Map>().tileGrid;
+                                runner[1].GetComponent<MapRunner>().map = grid;
                                 
                             }
 							DestroyImmediate(tile);
